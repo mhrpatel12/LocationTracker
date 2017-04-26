@@ -14,6 +14,8 @@ import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 
+import org.greenrobot.eventbus.EventBus;
+
 public class LocationTrackerService extends Service {
 
     private static final String TAG = "MyLocationService";
@@ -35,7 +37,7 @@ public class LocationTrackerService extends Service {
         public void onLocationChanged(Location location) {
             Log.e(TAG, "onLocationChanged: " + location);
             mLastLocation.set(location);
-            sendResult(new LatLng(location.getLatitude(), location.getLongitude()));
+            EventBus.getDefault().post(new LocationChangedEvent(location));
         }
 
         @Override
@@ -51,19 +53,6 @@ public class LocationTrackerService extends Service {
         @Override
         public void onStatusChanged(String provider, int status, Bundle extras) {
             Log.e(TAG, "onStatusChanged: " + provider);
-        }
-    }
-
-    public void sendResult(LatLng latLng) {
-        if (latLng != null) {
-            Intent intent = new Intent();
-            intent.setAction("SOME_ACTION");
-            intent.setAction("SOME_OTHER_ACTION");
-            intent.addCategory(Intent.CATEGORY_DEFAULT);
-
-            intent.putExtra("lat", latLng.latitude);
-            intent.putExtra("lng", latLng.longitude);
-            localBroadcastManager.sendBroadcast(intent);
         }
     }
 

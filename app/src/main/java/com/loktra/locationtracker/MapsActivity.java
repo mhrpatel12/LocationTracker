@@ -1,101 +1,67 @@
 package com.loktra.locationtracker;
 
 import android.Manifest;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.content.LocalBroadcastManager;
 import android.view.View;
-import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-
-import fr.quentinklein.slt.LocationTracker;
-import fr.quentinklein.slt.TrackerSettings;
 
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+
 import java.util.ArrayList;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
     private GoogleMap mMap;
     private Context mContext;
     private ArrayList<LatLng> points; //added
     Polyline line; //added
-    LocationTracker tracker;
 
     private LatLng latLngFromService;
-
-    private BroadcastReceiver broadcastReceiver;
+    private Location mLastLocation;
+    private GoogleApiClient mGoogleApiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
-        IntentFilter filter = new IntentFilter();
-        filter.addAction("SOME_ACTION");
-        filter.addAction("SOME_OTHER_ACTION");
-        filter.addCategory(Intent.CATEGORY_DEFAULT);
-
-        broadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if ((intent.getStringExtra("lat") != null) && (intent.getStringExtra("lng") != null)) {
-                    String lat = intent.getStringExtra("lat");
-                    String lng = intent.getStringExtra("lng");
-                    latLngFromService = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
-
-                    points.add(latLngFromService); //added
-
-                    redrawLine(); //added
-                }
-            }
-        };
-        registerReceiver(broadcastReceiver, filter);
-
-/*        broadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if ((intent.getStringExtra("lat") != null) && (intent.getStringExtra("lng") != null)) {
-                    String lat = intent.getStringExtra("lat");
-                    String lng = intent.getStringExtra("lng");
-                    latLngFromService = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
-
-                    points.add(latLngFromService); //added
-
-                    redrawLine(); //added
-                }
-            }
-        };*/
-
         mContext = this;
         points = new ArrayList<LatLng>(); //added
 
-        final TrackerSettings settings =
-                new TrackerSettings()
-                        .setUseGPS(true)
-                        .setUseNetwork(true)
-                        .setUsePassive(true)
-                        .setTimeBetweenUpdates(15000)
-                        .setMetersBetweenUpdates(10);
+        // Create an instance of GoogleAPIClient.
+        if (mGoogleApiClient == null) {
+            mGoogleApiClient = new GoogleApiClient.Builder(this)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .addApi(LocationServices.API)
+                    .build();
+        }
 
         if ((ContextCompat.checkSelfPermission(MapsActivity.this,
                 android.Manifest.permission.ACCESS_FINE_LOCATION)
@@ -146,30 +112,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 } else {
                     Intent intent = new Intent(mContext, LocationTrackerService.class);
                     startService(intent);
-/*                    tracker = new LocationTracker(mContext, settings) {
-                        @Override
-                        public void onLocationFound(Location location) {
-                            LatLng sydney = new LatLng(location.getLatitude(), location.getLongitude());
-                            CameraUpdate center = CameraUpdateFactory.newLatLngZoom(sydney, 17);
-                            mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-                            mMap.moveCamera(center);
-
-                            double latitude = location.getLatitude();
-                            double longitude = location.getLongitude();
-                            LatLng latLng = new LatLng(latitude, longitude); //you already have this
-
-                            points.add(latLng); //added
-
-                            redrawLine(); //added
-                        }
-
-                        @Override
-                        public void onTimeout() {
-
-                        }
-                    };
-                    tracker.startListening();
-               */
                 }
             }
         });
@@ -177,16 +119,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         findViewById(R.id.btnEnd).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                tracker.stopListening();
+                stopService(new Intent(MapsActivity.this, LocationTrackerService.class));
+                EventBus.getDefault().unregister(this);
             }
         });
     }
 
     private void redrawLine() {
 
-        mMap.clear();  //clears all Markers and Polylines
+        //mMap.clear();  //clears all Markers and Polylines
 
-        PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+        PolylineOptions options = new PolylineOptions().width(10).color(Color.BLUE).geodesic(true);
 
         for (int i = 0; i < points.size(); i++) {
             LatLng point = points.get(i);
@@ -195,6 +138,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         line = mMap.addPolyline(options); //add Polyline
     }
 
+    // This method will be called when a MessageEvent is posted (in the UI thread for Toast)
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onMessageEvent(LocationChangedEvent locationChangedEvent) {
+        if (locationChangedEvent != null) {
+            latLngFromService = new LatLng(locationChangedEvent.location.getLatitude(), locationChangedEvent.location.getLongitude());
+            points.add(latLngFromService); //added
+            redrawLine(); //added
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (!EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().register(this);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+    }
 
     /**
      * Manipulates the map once available.
@@ -208,23 +173,43 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        mGoogleApiClient.connect();
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        //LocalBroadcastManager.getInstance(this).registerReceiver((broadcastReceiver), new IntentFilter(LocationTrackerService.COPA_RESULT));
+    public void onConnected(@Nullable Bundle bundle) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+                mGoogleApiClient);
+        if (mLastLocation != null) {
+
+            LatLng ltLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+            CameraUpdate center = CameraUpdateFactory.newLatLngZoom(ltLng, 15);
+            latLngFromService = ltLng;
+            mMap.addMarker(new MarkerOptions().position(ltLng).title("Your Location"));
+            mMap.moveCamera(center);
+
+            points.add(latLngFromService); //added
+            redrawLine(); //added
+        }
     }
 
     @Override
-    protected void onStop() {
-        unregisterReceiver(broadcastReceiver);
-        super.onStop();
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
     }
 }
