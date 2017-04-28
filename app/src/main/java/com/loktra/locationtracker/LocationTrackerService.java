@@ -16,28 +16,27 @@ import com.google.android.gms.maps.model.LatLng;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.util.ArrayList;
+
 public class LocationTrackerService extends Service {
 
     private static final String TAG = "MyLocationService";
     private LocationManager mLocationManager = null;
     private static final int LOCATION_INTERVAL = 100;
     private static final float LOCATION_DISTANCE = 1f;
-
-    private LocalBroadcastManager localBroadcastManager;
+    private ArrayList<LatLng> points;
 
     private class LocationListener implements android.location.LocationListener {
-        Location mLastLocation;
 
         public LocationListener(String provider) {
             Log.e(TAG, "LocationListener " + provider);
-            mLastLocation = new Location(provider);
         }
 
         @Override
         public void onLocationChanged(Location location) {
             Log.e(TAG, "onLocationChanged: " + location);
-            mLastLocation.set(location);
-            EventBus.getDefault().post(new LocationChangedEvent(location));
+            points.add(new LatLng(location.getLatitude(), location.getLongitude()));
+            EventBus.getDefault().post(new LocationChangedEvent(points));
         }
 
         @Override
@@ -80,9 +79,7 @@ public class LocationTrackerService extends Service {
     public void onCreate() {
 
         Log.e(TAG, "onCreate");
-
-        localBroadcastManager = LocalBroadcastManager.getInstance(this);
-
+        points = new ArrayList<LatLng>();
         initializeLocationManager();
 
         try {
