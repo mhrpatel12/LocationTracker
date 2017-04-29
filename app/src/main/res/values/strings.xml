@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">Location Tracker</string>
     <string name="title_activity_maps">Home</string>
+    <string name="service_time">Total Shift Time</string>
+    <string name="switch_start">Swipe right to start shift</string>
+    <string name="switch_end">Swipe left to end shift</string>
+    <string name="title_app">Background Location Tracker</string>
 </resources>

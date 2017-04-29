@@ -41,7 +41,8 @@
 
         <activity
             android:name=".MapsActivity"
-            android:label="@string/title_activity_maps">
+            android:label="@string/title_app"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -50,9 +51,7 @@
         </activity>
 
         <service
-            android:name=".LocationTrackerService"
-            android:enabled="true"
-            android:exported="true"></service>
+            android:name=".LocationTrackerService"></service>
 
     </application>
 

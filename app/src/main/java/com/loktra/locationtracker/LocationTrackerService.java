@@ -16,14 +16,15 @@ import com.google.android.gms.maps.model.LatLng;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.sql.Time;
 import java.util.ArrayList;
 
 public class LocationTrackerService extends Service {
 
     private static final String TAG = "MyLocationService";
     private LocationManager mLocationManager = null;
-    private static final int LOCATION_INTERVAL = 100;
-    private static final float LOCATION_DISTANCE = 1f;
+    private static final int LOCATION_INTERVAL = 500;
+    private static final float LOCATION_DISTANCE = 1;
     private ArrayList<LatLng> points;
 
     private class LocationListener implements android.location.LocationListener {
