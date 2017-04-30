@@ -1,6 +1,4 @@
-package com.loktra.locationtracker;
-
-import android.location.Location;
+package com.loktra.locationtracker.event;
 
 import com.google.android.gms.maps.model.LatLng;
 

@@ -40,7 +40,7 @@
             android:value="@integer/google_play_services_version" />
 
         <activity
-            android:name=".MapsActivity"
+            android:name=".activity.MapsActivity"
             android:label="@string/title_app"
             android:screenOrientation="portrait">
             <intent-filter>
@@ -50,8 +50,7 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".LocationTrackerService"></service>
+        <service android:name=".service.LocationTrackerService"></service>
 
     </application>
 

@@ -1,4 +1,4 @@
-package com.loktra.locationtracker;
+package com.loktra.locationtracker.activity;
 
 import android.Manifest;
 import android.app.ActivityManager;
@@ -10,12 +10,12 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
-import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.AppCompatSeekBar;
 import android.view.View;
@@ -35,9 +35,11 @@ import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.loktra.locationtracker.R;
+import com.loktra.locationtracker.event.LocationChangedEvent;
+import com.loktra.locationtracker.service.LocationTrackerService;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -52,15 +54,13 @@ import static android.support.v4.content.PermissionChecker.PERMISSION_GRANTED;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
+    Polyline line;
+    boolean isServiceRunning = false;
     private GoogleMap mMap;
     private Context mContext;
-    private ArrayList<LatLng> points; //added
-    Polyline line; //added
-
-    private LatLng latLngFromService;
+    private ArrayList<LatLng> points;
     private Location mLastLocation;
     private GoogleApiClient mGoogleApiClient;
-    boolean isServiceRunning = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,29 +74,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         android.Manifest.permission.ACCESS_COARSE_LOCATION)
                         != PackageManager.PERMISSION_GRANTED)
                 ) {
-
-            // Should we show an explanation?
             if ((ActivityCompat.shouldShowRequestPermissionRationale(MapsActivity.this,
                     android.Manifest.permission.ACCESS_FINE_LOCATION))
                     &&
                     (ActivityCompat.shouldShowRequestPermissionRationale(MapsActivity.this,
                             android.Manifest.permission.ACCESS_COARSE_LOCATION))) {
 
-                // Show an explanation to the user *asynchronously* -- don't block
-                // this thread waiting for the user's response! After the user
-                // sees the explanation, try again to request the permission.
-
             } else {
-
-                // No explanation needed, we can request the permission.
-
                 ActivityCompat.requestPermissions(MapsActivity.this,
                         new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION},
                         6);
-
-                // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
-                // app-defined int constant. The callback method gets the
-                // result of the request.
             }
         }
 
@@ -180,7 +167,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     ((LinearLayout) findViewById(R.id.layout_shift_time)).setVisibility(View.GONE);
                     if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                             && ContextCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        // You need to ask the user to enable the permissions
                     } else {
                         seekBar.setProgress(100);
                         seekBar.setThumb(getResources().getDrawable(R.drawable.ic_left_black_24dp));
@@ -200,29 +186,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (grantResults[0] == PERMISSION_GRANTED) {
-            if (!EventBus.getDefault().isRegistered(this)) {
-                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    // TODO: Consider calling
-                    //    ActivityCompat#requestPermissions
-                    // here to request the missing permissions, and then overriding
-                    //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                    //                                          int[] grantResults)
-                    // to handle the case where the user grants the permission. See the documentation
-                    // for ActivityCompat#requestPermissions for more details.
-                    return;
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+                    mGoogleApiClient);
+            if (mLastLocation != null) {
+                LatLng ltLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                CameraUpdate center = CameraUpdateFactory.newLatLngZoom(ltLng, 15);
+                if (!isServiceRunning) {
+                    mMap.addMarker(new MarkerOptions().position(ltLng).title("Your Location"));
                 }
-                mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
-                        mGoogleApiClient);
-                if (mLastLocation != null) {
-
-                    LatLng ltLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-                    CameraUpdate center = CameraUpdateFactory.newLatLngZoom(ltLng, 15);
-                    latLngFromService = ltLng;
-                    if (!isServiceRunning) {
-                        mMap.addMarker(new MarkerOptions().position(ltLng).title("Your Location"));
-                    }
-                    mMap.moveCamera(center);
-                }
+                mMap.moveCamera(center);
             }
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -238,7 +213,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void redrawLine() {
-
         mMap.clear();  //clears all Markers and Polylines
         Drawable circleDrawable = getResources().getDrawable(R.drawable.ic_plot_start_24dp);
         BitmapDescriptor markerIcon = getMarkerIconFromDrawable(circleDrawable);
@@ -295,13 +269,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return;
         }
         mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
@@ -310,7 +277,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             LatLng ltLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
             CameraUpdate center = CameraUpdateFactory.newLatLngZoom(ltLng, 15);
-            latLngFromService = ltLng;
             if (!isServiceRunning) {
                 mMap.addMarker(new MarkerOptions().position(ltLng).title("Your Location"));
             }

@@ -1,4 +1,4 @@
-package com.loktra.locationtracker;
+package com.loktra.locationtracker.service;
 
 import android.app.Service;
 import android.content.Context;
@@ -9,56 +9,25 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
+import com.loktra.locationtracker.event.LocationChangedEvent;
 
 import org.greenrobot.eventbus.EventBus;
 
-import java.sql.Time;
 import java.util.ArrayList;
 
 public class LocationTrackerService extends Service {
 
     private static final String TAG = "MyLocationService";
-    private LocationManager mLocationManager = null;
     private static final int LOCATION_INTERVAL = 500;
     private static final float LOCATION_DISTANCE = 1;
-    private ArrayList<LatLng> points;
-
-    private class LocationListener implements android.location.LocationListener {
-
-        public LocationListener(String provider) {
-            Log.e(TAG, "LocationListener " + provider);
-        }
-
-        @Override
-        public void onLocationChanged(Location location) {
-            Log.e(TAG, "onLocationChanged: " + location);
-            points.add(new LatLng(location.getLatitude(), location.getLongitude()));
-            EventBus.getDefault().post(new LocationChangedEvent(points));
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-            Log.e(TAG, "onProviderDisabled: " + provider);
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-            Log.e(TAG, "onProviderEnabled: " + provider);
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-            Log.e(TAG, "onStatusChanged: " + provider);
-        }
-    }
-
     LocationListener[] mLocationListeners = new LocationListener[]{
             new LocationListener(LocationManager.PASSIVE_PROVIDER)
     };
+    private LocationManager mLocationManager = null;
+    private ArrayList<LatLng> points;
 
     public LocationTrackerService() {
     }
@@ -119,6 +88,35 @@ public class LocationTrackerService extends Service {
         Log.e(TAG, "initializeLocationManager - LOCATION_INTERVAL: " + LOCATION_INTERVAL + " LOCATION_DISTANCE: " + LOCATION_DISTANCE);
         if (mLocationManager == null) {
             mLocationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+        }
+    }
+
+    private class LocationListener implements android.location.LocationListener {
+
+        public LocationListener(String provider) {
+            Log.e(TAG, "LocationListener " + provider);
+        }
+
+        @Override
+        public void onLocationChanged(Location location) {
+            Log.e(TAG, "onLocationChanged: " + location);
+            points.add(new LatLng(location.getLatitude(), location.getLongitude()));
+            EventBus.getDefault().post(new LocationChangedEvent(points));
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+            Log.e(TAG, "onProviderDisabled: " + provider);
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+            Log.e(TAG, "onProviderEnabled: " + provider);
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+            Log.e(TAG, "onStatusChanged: " + provider);
         }
     }
 }

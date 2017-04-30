@@ -1,5 +1,4 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -9,7 +8,7 @@
         android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        tools:context="com.loktra.locationtracker.MapsActivity" />
+        tools:context="com.loktra.locationtracker.activity.MapsActivity" />
 
     <android.support.v7.widget.AppCompatSeekBar
         android:id="@+id/seek_bar_start_end"
