@@ -1,7 +1,7 @@
 # LocationTracker
 
-This project tracks location of device when shift started. 
+This project tracks location of user in background. 
 Upon change in location activity gets notified with updated location and polyline is drawn between start and end location.
 
 
-EventBus library from GreenRobot is used for managing location events.
+EventBus from GreenRobot is used for managing location events.
